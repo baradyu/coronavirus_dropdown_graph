@@ -1,0 +1,99 @@
+library(readxl)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+library(data.table)
+library(tidyverse)
+
+# Getting the data
+url <- "https://covid.ourworldindata.org/data/owid-covid-data.csv"
+df <- data.frame(fread(url))
+
+# Choosing countries
+df2 <- subset(df, location %in% c("United States", "India", "Brazil", "Russia", "United Kingdom",
+                                  "France", "Spain", "Italy", "Turkey", "Germany", "Colombia",
+                                  "Argentina", "Mexico", "Poland", "Iran", "South Africa", "Ukraine", 
+                                  "Indonesia", "Peru", "Czechia", "Netherlands", "Canada", "Chile",
+                                  "Romania", "Portugal", "Japan"))
+df <- df2
+
+# str to datetime
+df[,4] <- as.POSIXct(df[,4],format="%Y-%m-%d")
+
+#simplifying data
+keeps <-c("continent","location","date","total_cases","new_cases","total_deaths","new_deaths","total_cases_per_million", 
+          "new_cases_per_million","total_deaths_per_million","new_deaths_per_million", "total_tests")
+df <- df[keeps]
+
+# "Visible" matrix
+country_number = length(unique(df$location))
+variable_number = length(unique(keeps)) - 3 # since we keep 'continent', 'location', 'date' in data
+n = variable_number*country_number
+v_matrix = matrix(FALSE, nrow = variable_number, ncol = n)
+
+n <- -country_number
+for (k in 1:variable_number){
+  n <- n + country_number
+  for (i in 1:country_number){
+    v_matrix[k,i+n] <- TRUE
+  }
+}
+
+# deleting negative cells
+df[df < 0] <- NA
+
+df[df$location == "Turkey",]$icu_patients_per_million
+
+df[df$location == countries[1],]$new_cases
+
+# graph
+fig <- plot_ly(df, x = ~date)
+fig <- fig %>% add_lines(y = ~total_cases, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~new_cases, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~total_deaths, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~new_deaths, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~total_cases_per_million, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~new_cases_per_million, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~total_deaths_per_million, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~new_deaths_per_million, type = "scatter", mode = "lines", color = ~location, visible = F)
+fig <- fig %>% add_lines(y = ~total_tests, type = "scatter", mode = "lines", color = ~location, visible = F)
+
+fig <- fig %>% layout(
+  title = "Choose your indicator from the dropdown menu.",
+  xaxis = list(title = "Date"),
+  yaxis = list(title = ""),
+  updatemenus = list(
+    list(
+      y = 0.7,
+      buttons = list(
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[1,])),
+             label = "Total Cases"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[2,])),
+             label = "New Cases"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[3,])),
+             label = "Total Deaths"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[4,])),
+             label = "New Deaths"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[5,])),
+             label = "Total Cases Per Million"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[6,])),
+             label = "New Cases Per Million"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[7,])),
+             label = "Total Deaths Per Million"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[8,])),
+             label = "New Deaths Per Million"),
+        list(method = "restyle",
+             args = list("visible", as.list(v_matrix[9,])),
+             label = "Total Tests")
+      )
+    )
+  )
+)
